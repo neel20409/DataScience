@@ -6,8 +6,8 @@
 
 | # | Project | Level | Status |
 |---|---------|-------|--------|
-| 1 | EDA Portfolio | Beginner | 🔄 In Progress |
-| 2 | Iris Classification | Beginner | ⏳ Coming Soon |
+| 1 | EDA Portfolio | Beginner | ✅ Done |
+| 2 | Iris Classification | Beginner | 🔄 In Progress |
 | 3 | Titanic Survival | Beginner | ⏳ Coming Soon |
 | 4 | Housing Price Predictor | Beginner | ⏳ Coming Soon |
 | 5 | Customer Churn | Beginner | ⏳ Coming Soon |
