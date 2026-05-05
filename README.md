@@ -7,9 +7,9 @@
 | # | Project | Level | Status |
 |---|---------|-------|--------|
 | 1 | EDA Portfolio | Beginner | ✅ Done |
-| 2 | Iris Classification | Beginner | 🔄 In Progress |
-| 3 | Titanic Survival | Beginner | ⏳ Coming Soon |
-| 4 | Housing Price Predictor | Beginner | ⏳ Coming Soon |
+| 2 | Iris Classification | Beginner |✅ Done |
+| 3 | Titanic Survival | Beginner | ✅ Done |
+| 4 | Housing Price Predictor | Beginner | 🔄 In Progress  |
 | 5 | Customer Churn | Beginner | ⏳ Coming Soon |
 | 6 | Linear Regression Scratch | Intermediate | ⏳ Coming Soon |
 | 7 | Image Classification | Intermediate | ⏳ Coming Soon |
