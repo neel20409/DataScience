@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://housing-predictor.vercel.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://data-science-ashy.vercel.app";
 
 export const viewport: Viewport = {
   themeColor: "#6366f1",
