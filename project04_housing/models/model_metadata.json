@@ -1,7 +1,7 @@
 {
   "model_name": "Random Forest Regressor",
   "trained_on": "California Housing Dataset",
-  "training_date": "2026-07-23 06:17",
+  "training_date": "2026-07-23 06:18",
   "r2_score": 0.7749,
   "rmse": 0.4645,
   "mae": 0.3135,
