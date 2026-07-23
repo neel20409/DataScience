@@ -359,10 +359,10 @@ export default function Home() {
                         min={f.min}
                         max={f.max}
                         step={f.step}
-                        className="w-full bg-slate-950 text-white font-semibold text-base px-4 py-3 rounded-xl border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40 focus:outline-none transition-all placeholder-slate-500"
+                        className="w-full bg-slate-950 text-white font-semibold text-base pl-4 pr-16 py-3 rounded-xl border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40 focus:outline-none transition-all placeholder-slate-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         required
                       />
-                      <span className="absolute right-3.5 top-3.5 text-xs text-slate-500 font-mono pointer-events-none">
+                      <span className="absolute right-2.5 top-2.5 text-xs text-slate-400 font-mono pointer-events-none bg-slate-900 border border-slate-800 px-2 py-1 rounded-md shadow-sm">
                         {f.unit}
                       </span>
                     </div>
