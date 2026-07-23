@@ -5,6 +5,7 @@ __pycache__/
 *.log
 .ipynb_checkpoints/
 *.pkl
+!project04_housing/housing-api/models/housing_model.pkl
 node_modules/
 .next/
 .venv/

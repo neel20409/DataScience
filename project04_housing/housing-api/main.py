@@ -4,21 +4,28 @@ from pydantic import BaseModel
 import joblib
 import numpy as np
 import os
+import uvicorn
 
 app = FastAPI(title="Housing Price Predictor API")
 
 # ── CORS — allow Next.js frontend ───────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # replace with your Vercel URL in production
+    allow_origins=["*"],  # allow all origins for production deployment
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ── Load model on startup ────────────────────────────────────────
-MODEL_PATH = "models/housing_model.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "models", "housing_model.pkl")
+
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
+
 model = joblib.load(MODEL_PATH)
-print("✅ Model loaded!")
+print("[OK] Model loaded successfully!")
 
 # ── Input schema ─────────────────────────────────────────────────
 class HouseFeatures(BaseModel):
@@ -34,24 +41,22 @@ class HouseFeatures(BaseModel):
 # ── Health check endpoint ────────────────────────────────────────
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Housing Price API is running"}
+    return {"status": "ok", "message": "Housing Price Predictor API is running"}
 
 # ── Predict endpoint ─────────────────────────────────────────────
 @app.post("/predict")
 def predict(features: HouseFeatures):
-    # Feature engineering — same as training
     AveRooms   = features.AveRooms
-    AveOccup   = features.AveOccup
+    AveOccup   = features.AveOccup if features.AveOccup != 0 else 1e-6
     MedInc     = features.MedInc
     Population = features.Population
     AveBedrms  = features.AveBedrms
 
     RoomsPerPerson = AveRooms / AveOccup
-    BedroomRatio   = AveBedrms / AveRooms
-    IncomePerRoom  = MedInc / AveRooms
+    BedroomRatio   = AveBedrms / (AveRooms if AveRooms != 0 else 1e-6)
+    IncomePerRoom  = MedInc / (AveRooms if AveRooms != 0 else 1e-6)
     PopDensity     = Population / AveOccup
 
-    # Build feature array — same order as training
     data = np.array([[
         features.MedInc,
         features.HouseAge,
@@ -76,3 +81,7 @@ def predict(features: HouseFeatures):
         "price_100k":      round(prediction, 4),
         "confidence":      "high" if 50_000 < price_dollars < 500_000 else "low",
     }
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
