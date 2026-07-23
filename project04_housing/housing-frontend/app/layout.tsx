@@ -83,30 +83,63 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Schema.org JSON-LD Structured Data for Google Search Rich Snippets
+  // Schema.org Graph combining SoftwareApplication & FAQPage for Google Search Accordions
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "California Housing Price Predictor",
-    "operatingSystem": "All",
-    "applicationCategory": "BusinessApplication",
-    "description": "Machine Learning property value estimator for California real estate based on California Census dataset.",
-    "url": siteUrl,
-    "author": {
-      "@type": "Person",
-      "name": "Neel Bhatt",
-      "url": "https://github.com/neel20409"
-    },
-    "offers": {
-      "@type": "Offer",
-      "price": "0.00",
-      "priceCurrency": "USD"
-    },
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.9",
-      "ratingCount": "128"
-    }
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "California Housing Price Predictor",
+        "operatingSystem": "All",
+        "applicationCategory": "BusinessApplication",
+        "description": "Machine Learning property value estimator for California real estate based on California Census dataset.",
+        "url": siteUrl,
+        "author": {
+          "@type": "Person",
+          "name": "Neel Bhatt",
+          "url": "https://github.com/neel20409"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "0.00",
+          "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "ratingCount": "128"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How does the California House Price Predictor estimate home values?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The tool utilizes a Random Forest Regressor trained on 20,640 California census block groups. It processes 8 primary features along with engineered ratio features to generate real-time market value estimates."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What factors influence California property valuation the most?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Median Income (MedInc) is the primary driver, accounting for over 50% of prediction weight. Geographic location (Latitude & Longitude) and spatial occupancy density form the second highest predictive weights."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How accurate is this California Housing ML model?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The model achieves an R² score of 0.81 (81% variance explained) on validation datasets, providing reliable baseline market estimations."
+            }
+          }
+        ]
+      }
+    ]
   };
 
   return (
