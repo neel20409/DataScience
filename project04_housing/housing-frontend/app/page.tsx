@@ -1,11 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 interface PredictionResult {
   predicted_price: number;
   formatted_price: string;
   price_100k: number;
   confidence: string;
+  created_at?: string;
 }
 
 interface FormData {
@@ -52,10 +54,39 @@ export default function Home() {
     Longitude:  -118.0,
   });
 
-  const [result, setResult]   = useState<PredictionResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"predict" | "objective">("predict");
+  const [result, setResult]               = useState<PredictionResult | null>(null);
+  const [loading, setLoading]             = useState(false);
+  const [error, setError]                 = useState<string | null>(null);
+  const [activeTab, setActiveTab]         = useState<"predict" | "objective" | "history">("predict");
+  const [history, setHistory]             = useState<PredictionResult[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Fetch prediction history from Supabase if configured
+  const fetchHistory = async () => {
+    if (!supabase) return;
+    setHistoryLoading(true);
+    try {
+      const { data, error: sbError } = await supabase
+        .from("predictions")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (!sbError && data) {
+        setHistory(data);
+      }
+    } catch (err) {
+      console.error("Supabase fetch error:", err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetchHistory();
+    }
+  }, [activeTab]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
@@ -82,8 +113,27 @@ export default function Home() {
       if (!res.ok) {
         throw new Error(`API responded with status code ${res.status}`);
       }
-      const data = await res.json();
+      const data: PredictionResult = await res.json();
       setResult(data);
+
+      // Save prediction to Supabase if configured
+      if (supabase) {
+        await supabase.from("predictions").insert([
+          {
+            formatted_price: data.formatted_price,
+            predicted_price: data.predicted_price,
+            confidence:      data.confidence,
+            med_inc:         form.MedInc,
+            house_age:       form.HouseAge,
+            ave_rooms:       form.AveRooms,
+            ave_bedrms:      form.AveBedrms,
+            population:      form.Population,
+            ave_occup:       form.AveOccup,
+            latitude:        form.Latitude,
+            longitude:       form.Longitude,
+          }
+        ]);
+      }
     } catch (err: any) {
       setError(
         "Could not connect to FastAPI backend at " + API_URL + ". Ensure 'uvicorn main:app --reload' is running."
@@ -93,7 +143,6 @@ export default function Home() {
     }
   };
 
-  // Calculated helper metrics for feature visualization
   const roomsPerPerson = (form.AveRooms / (form.AveOccup || 1)).toFixed(2);
   const bedroomRatio   = ((form.AveBedrms / (form.AveRooms || 1)) * 100).toFixed(1);
   const incomePerRoom  = (form.MedInc / (form.AveRooms || 1)).toFixed(2);
@@ -120,7 +169,7 @@ export default function Home() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
             </span>
-            Machine Learning API · Project 04
+            Machine Learning + Supabase · Project 04
           </div>
           
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
@@ -131,12 +180,24 @@ export default function Home() {
             Real-time property valuation model trained on 20,640 California census block groups using Random Forest Regression ($R^2 = 0.81$).
           </p>
 
+          {/* Supabase Integration Badge */}
+          <div className="flex justify-center items-center gap-2 text-xs">
+            <span className={`px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 ${
+              isSupabaseConfigured 
+                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" 
+                : "bg-slate-800 text-slate-400 border border-slate-700"
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${isSupabaseConfigured ? "bg-emerald-400" : "bg-slate-500"}`}></span>
+              {isSupabaseConfigured ? "Supabase Connected" : "Supabase: Ready for Setup"}
+            </span>
+          </div>
+
           {/* Tab Selection */}
           <div className="flex justify-center pt-2">
             <div className="bg-slate-900/80 p-1 rounded-xl border border-slate-800 flex gap-1 shadow-lg">
               <button
                 onClick={() => setActiveTab("predict")}
-                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                   activeTab === "predict"
                     ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
                     : "text-slate-400 hover:text-white hover:bg-slate-800/60"
@@ -146,13 +207,23 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setActiveTab("objective")}
-                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                   activeTab === "objective"
                     ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
                     : "text-slate-400 hover:text-white hover:bg-slate-800/60"
                 }`}
               >
-                🎯 Project Objective & Insights
+                🎯 Project Objective
+              </button>
+              <button
+                onClick={() => setActiveTab("history")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  activeTab === "history"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                ⚡ Saved Predictions
               </button>
             </div>
           </div>
@@ -163,91 +234,79 @@ export default function Home() {
           <section className="bg-slate-900/70 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-8 shadow-2xl animate-fade-in">
             <div className="border-b border-slate-800 pb-5">
               <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                🎯 Project Objective & Technical Highlights
+                🎯 Project Objective & Architecture
               </h2>
               <p className="text-slate-400 text-sm mt-1">
-                Understanding the data science pipeline behind the Housing Price Predictor model.
+                Data Science ML pipeline integrated with Supabase PostgreSQL cloud backend.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Objective 1 */}
               <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg">
-                  1
-                </div>
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg">1</div>
                 <h3 className="text-lg font-semibold text-white">Automated Valuation Model</h3>
                 <p className="text-slate-400 text-sm leading-relaxed">
-                  The primary goal is to estimate median house values for census blocks in California using multi-variate demographic, geographic, and structural features.
+                  Estimates median house values using demographic, spatial, and structural metrics.
                 </p>
               </div>
 
-              {/* Objective 2 */}
               <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-lg">
-                  2
-                </div>
-                <h3 className="text-lg font-semibold text-white">Engineered Ratios</h3>
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg">2</div>
+                <h3 className="text-lg font-semibold text-white">Supabase Cloud Database</h3>
                 <p className="text-slate-400 text-sm leading-relaxed">
-                  Raw features are enhanced with engineered metrics such as <code className="text-purple-300">RoomsPerPerson</code>, <code className="text-purple-300">BedroomRatio</code>, and <code className="text-purple-300">PopDensity</code> to capture density and luxury factors.
-                </p>
-              </div>
-
-              {/* Objective 3 */}
-              <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg">
-                  3
-                </div>
-                <h3 className="text-lg font-semibold text-white">Model Metrics ($R^2 = 0.81$)</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Trained using Scikit-Learn's <code className="text-emerald-300">RandomForestRegressor</code> with 100 decision trees, delivering robust predictions across varied geographic zones.
-                </p>
-              </div>
-
-              {/* Objective 4 */}
-              <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-lg">
-                  4
-                </div>
-                <h3 className="text-lg font-semibold text-white">Decoupled REST Architecture</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  FastAPI provides a high-performance, asynchronous REST backend for real-time predictions, consumed seamlessly by this Next.js frontend client.
+                  Prediction estimates can be stored in real-time in PostgreSQL database via Supabase client SDK.
                 </p>
               </div>
             </div>
-
-            {/* Model Feature Importance Summary */}
-            <div className="bg-indigo-950/30 border border-indigo-800/40 rounded-2xl p-5 space-y-3">
-              <h4 className="text-indigo-300 font-semibold text-sm uppercase tracking-wider">💡 Key Predictive Drivers</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 text-center">
-                  <p className="text-slate-400">#1 Driver</p>
-                  <p className="font-bold text-white text-sm mt-0.5">Median Income</p>
-                  <p className="text-indigo-400 font-medium">~52% Weight</p>
-                </div>
-                <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 text-center">
-                  <p className="text-slate-400">#2 Driver</p>
-                  <p className="font-bold text-white text-sm mt-0.5">Location (Lat/Long)</p>
-                  <p className="text-purple-400 font-medium">~18% Weight</p>
-                </div>
-                <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 text-center">
-                  <p className="text-slate-400">#3 Driver</p>
-                  <p className="font-bold text-white text-sm mt-0.5">Rooms / Person</p>
-                  <p className="text-emerald-400 font-medium">~14% Weight</p>
-                </div>
-                <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 text-center">
-                  <p className="text-slate-400">#4 Driver</p>
-                  <p className="font-bold text-white text-sm mt-0.5">House Age</p>
-                  <p className="text-amber-400 font-medium">~8% Weight</p>
-                </div>
+          </section>
+        ) : activeTab === "history" ? (
+          /* ── SAVED PREDICTIONS HISTORY ──────────────────────────────────── */
+          <section className="bg-slate-900/70 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-xl font-bold text-white">⚡ Saved Predictions History</h2>
+                <p className="text-xs text-slate-400">Live predictions stored in Supabase PostgreSQL</p>
               </div>
+              <button
+                onClick={fetchHistory}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors"
+              >
+                Refresh 🔄
+              </button>
             </div>
+
+            {!isSupabaseConfigured ? (
+              <div className="bg-amber-950/40 border border-amber-800/50 rounded-2xl p-6 text-center space-y-3">
+                <p className="text-amber-300 font-semibold text-sm">⚡ Supabase Credentials Required</p>
+                <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+                  To view and persist prediction logs, add your <code className="text-amber-200">NEXT_PUBLIC_SUPABASE_URL</code> and <code className="text-amber-200">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to your <code className="text-amber-200">.env.local</code> file.
+                </p>
+              </div>
+            ) : historyLoading ? (
+              <p className="text-center text-slate-400 text-sm py-8">Loading history from Supabase...</p>
+            ) : history.length === 0 ? (
+              <p className="text-center text-slate-400 text-sm py-8">No saved predictions yet. Run a prediction to store data in Supabase!</p>
+            ) : (
+              <div className="space-y-3">
+                {history.map((h, idx) => (
+                  <div key={idx} className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex justify-between items-center text-xs">
+                    <div>
+                      <span className="font-mono text-indigo-400 font-bold text-sm block">{h.formatted_price}</span>
+                      <span className="text-slate-500">{new Date(h.created_at || "").toLocaleString()}</span>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full font-semibold ${
+                      h.confidence === "high" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                    }`}>
+                      {h.confidence} confidence
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         ) : (
           /* ── INTERACTIVE PREDICTOR SECTION ───────────────────────────────── */
           <div className="space-y-8">
-            
-            {/* Quick Presets */}
             <div className="space-y-3">
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block text-center sm:text-left">
                 ⚡ Load Sample Preset Profiles:
@@ -257,7 +316,7 @@ export default function Home() {
                   <button
                     key={p.name}
                     onClick={() => applyPreset(p.data)}
-                    className="px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-indigo-600/20 border border-slate-800 hover:border-indigo-500/50 text-slate-300 hover:text-white text-xs font-medium transition-all text-left truncate shadow-sm"
+                    className="px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-indigo-600/20 border border-slate-800 hover:border-indigo-500/50 text-slate-300 hover:text-white text-xs font-medium transition-all text-left truncate shadow-sm cursor-pointer"
                   >
                     {p.name}
                   </button>
@@ -265,7 +324,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Main Input Form */}
             <form
               onSubmit={handleSubmit}
               className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-6 sm:p-8 space-y-8 shadow-2xl"
@@ -273,7 +331,7 @@ export default function Home() {
               <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
                 <div>
                   <h2 className="text-xl font-bold text-white">Property & Location Features</h2>
-                  <p className="text-xs text-slate-400">Adjust the attributes below to run live estimation</p>
+                  <p className="text-xs text-slate-400">Adjust attributes to generate estimation</p>
                 </div>
                 <span className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full font-mono">
                   8 Features
@@ -292,7 +350,6 @@ export default function Home() {
                       </span>
                     </div>
 
-                    {/* HIGH CONTRAST INPUT STYLING - FULLY VISIBLE TEXT IN BOTH LIGHT & DARK */}
                     <div className="relative rounded-xl shadow-sm">
                       <input
                         type="number"
@@ -317,7 +374,6 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Derived Metric Badges preview */}
               <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 grid grid-cols-3 gap-3 text-center">
                 <div>
                   <p className="text-xs text-slate-400">Rooms / Person</p>
@@ -354,7 +410,6 @@ export default function Home() {
               </button>
             </form>
 
-            {/* Error Message */}
             {error && (
               <div className="bg-rose-950/80 border border-rose-800/80 text-rose-200 rounded-2xl p-5 text-sm flex items-start gap-3 shadow-lg">
                 <span className="text-xl">⚠️</span>
@@ -365,7 +420,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Result Display */}
             {result && (
               <div className="bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-indigo-500/30 p-8 text-center space-y-6 shadow-2xl animate-fade-in relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500"></div>
@@ -389,37 +443,12 @@ export default function Home() {
                   >
                     {result.confidence === "high" ? "✅ High Model Confidence" : "⚠️ Low Model Confidence"}
                   </span>
-
-                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-slate-800 text-slate-300 text-xs font-mono">
-                    Output Metric: {result.price_100k} ($100k unit)
-                  </span>
-                </div>
-
-                <div className="pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-slate-400">
-                  <div>
-                    <p className="text-slate-500">Algorithm</p>
-                    <p className="font-semibold text-white mt-0.5">Random Forest</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Trees</p>
-                    <p className="font-semibold text-white mt-0.5">100 Estimators</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Dataset</p>
-                    <p className="font-semibold text-white mt-0.5">CA Census 1990</p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Accuracy ($R^2$)</p>
-                    <p className="font-semibold text-emerald-400 mt-0.5">0.81 (81%)</p>
-                  </div>
                 </div>
               </div>
             )}
-
           </div>
         )}
 
-        {/* ── FOOTER ──────────────────────────────────────────────────────── */}
         <footer className="text-center text-slate-400 text-xs pt-6 pb-4 border-t border-slate-800/60">
           <p>
             Housing Price Predictor · Built by{" "}

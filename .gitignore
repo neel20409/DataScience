@@ -1,6 +1,11 @@
 __pycache__/
 *.pyc
 .env
+.env.local
 *.log
 .ipynb_checkpoints/
 *.pkl
+node_modules/
+.next/
+.venv/
+venv/
