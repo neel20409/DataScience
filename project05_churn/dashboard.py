@@ -275,7 +275,7 @@ elif page == "Customer List":
     show_df = filtered[cols_show].head(200)
 
     st.dataframe(
-        show_df.style.applymap(color_risk, subset=['Risk']),
+        show_df.style.map(color_risk, subset=['Risk']),
         use_container_width=True, height=420
     )
 
